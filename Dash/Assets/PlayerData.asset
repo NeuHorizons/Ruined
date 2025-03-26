@@ -1,0 +1,38 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 899df05eef767a54793d71db0404530f, type: 3}
+  m_Name: PlayerData
+  m_EditorClassIdentifier: 
+  soulCount: 21635
+  dashUnlocked: 0
+  characterName: NeuHorizon
+  currentLevel: 0
+  currentExp: 6
+  expToNextLevel: 100
+  statPointsAvailable: 0
+  currentFloor: 0
+  highestFloor: 0
+  baseMovementSpeed: 5
+  baseDamage: 5
+  baseHealth: 100
+  baseAttackSpeed: 0.6
+  baseStamina: 100
+  movementSpeedNaturalPoints: 0
+  damageNaturalPoints: 0
+  healthNaturalPoints: 0
+  attackSpeedNaturalPoints: 0
+  staminaNaturalPoints: 0
+  movementSpeedLevel: 0
+  damageLevel: 0
+  healthLevel: 0
+  attackSpeedLevel: 0
+  staminaLevel: 0
