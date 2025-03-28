@@ -3,6 +3,8 @@ using UnityEngine.SceneManagement;
 
 public class FloorManager : MonoBehaviour
 {
+    public static FloorManager Instance; // Singleton instance
+
     [Header("Player Data Reference")]
     [Tooltip("Reference to the PlayerData ScriptableObject.")]
     public PlayerDataSO playerData;
@@ -17,17 +19,32 @@ public class FloorManager : MonoBehaviour
     [Tooltip("Reference to the LevelLayoutGenerator, which builds the dungeon layout for the current floor.")]
     public LevelLayoutGenerator levelLayoutGenerator;
 
-    [Header("Enemy Difficulty Settings")]
-    [Tooltip("Enemy spawner components that will have their spawn rates and enemy stats adjusted based on the floor.")]
-    public EnemySpawner[] enemySpawners;
-    [Tooltip("Base spawn rate (seconds between spawns) at floor 1.")]
-    public float baseSpawnRate = 5f;
-    [Tooltip("Amount to decrease the spawn rate per floor (spawn rate gets lower as floor increases).")]
-    public float spawnRateDecreasePerFloor = 0.1f;
-    [Tooltip("Base enemy health at floor 1.")]
-    public float baseEnemyHealth = 100f;
-    [Tooltip("Amount to increase enemy health per floor.")]
-    public float enemyHealthIncreasePerFloor = 10f;
+    [Header("Enemy Multipliers")]
+    [Tooltip("Multiplier for enemy health per floor. Final health = enemyBaseHealth * (enemyHealthMultiplier)^(floor-1).")]
+    public float enemyHealthMultiplier = 1.1f;
+    [Tooltip("Multiplier for enemy damage per floor. Final damage = enemyBaseDamage * (enemyDamageMultiplier)^(floor-1).")]
+    public float enemyDamageMultiplier = 1.1f;
+    [Tooltip("Multiplier for enemy speed per floor. Final speed = enemyBaseSpeed * (enemySpeedMultiplier)^(floor-1).")]
+    public float enemySpeedMultiplier = 1.05f;
+    [Tooltip("Multiplier for enemy XP per floor. Final XP = baseXP * (enemyXPMultiplier)^(floor-1).")]
+    public float enemyXPMultiplier = 1.1f;
+
+    [Header("Spawner Multipliers")]
+    [Tooltip("Multiplier for spawn rate per floor. Final spawn rate = spawner's base spawn rate * (spawnRateMultiplier)^(floor-1).")]
+    public float spawnRateMultiplier = 0.95f;
+    [Tooltip("Multiplier for maximum enemies per floor. Final max enemies = baseMaxEnemies * (maxEnemyMultiplier)^(floor-1).")]
+    public float maxEnemyMultiplier = 1.1f;
+    [Tooltip("Multiplier for spawner health per floor. Final spawner health = BeaconHealth.baseHealth * (spawnerHealthMultiplier)^(floor-1).")]
+    public float spawnerHealthMultiplier = 1.1f;
+
+    private void Awake()
+    {
+        // Setup singleton instance.
+        if (Instance == null)
+            Instance = this;
+        else
+            Destroy(gameObject);
+    }
 
     private void Start()
     {
@@ -37,7 +54,7 @@ public class FloorManager : MonoBehaviour
             return;
         }
 
-        // Load current floor & highest floor from PlayerData
+        // Load current floor & highest floor from PlayerData.
         currentFloor = playerData.currentFloor;
         highestFloorReached = playerData.highestFloor;
 
@@ -52,11 +69,11 @@ public class FloorManager : MonoBehaviour
         if (levelLayoutGenerator != null)
             levelLayoutGenerator.GenerateLevel();
 
-        AdjustEnemyDifficulty();
+        AdjustSpawnerDifficulty();
     }
 
     /// <summary>
-    /// Advances to the next floor, updates PlayerData, regenerates the level, and adjusts enemy difficulty.
+    /// Advances to the next floor, updates PlayerData, regenerates the level, and adjusts spawner difficulty.
     /// </summary>
     public void AdvanceToNextFloor()
     {
@@ -72,11 +89,11 @@ public class FloorManager : MonoBehaviour
         if (levelLayoutGenerator != null)
             levelLayoutGenerator.GenerateLevel();
 
-        AdjustEnemyDifficulty();
+        AdjustSpawnerDifficulty();
     }
 
     /// <summary>
-    /// Updates PlayerData to reflect the current floor and highest floor reached.
+    /// Updates PlayerData to reflect the current floor.
     /// </summary>
     private void UpdatePlayerDataFloorInfo()
     {
@@ -84,22 +101,32 @@ public class FloorManager : MonoBehaviour
     }
 
     /// <summary>
-    /// Adjusts enemy difficulty based on the current floor.
+    /// Finds all EnemySpawner objects in the scene and adjusts their stats using multiplicative scaling.
     /// </summary>
-    private void AdjustEnemyDifficulty()
+    private void AdjustSpawnerDifficulty()
     {
-        float newSpawnRate = Mathf.Max(1f, baseSpawnRate - (currentFloor * spawnRateDecreasePerFloor));
-        float newEnemyHealth = baseEnemyHealth + (currentFloor * enemyHealthIncreasePerFloor);
-
-        if (enemySpawners != null)
+        EnemySpawner[] spawners = FindObjectsOfType<EnemySpawner>();
+        if (spawners != null)
         {
-            foreach (EnemySpawner spawner in enemySpawners)
+            foreach (EnemySpawner spawner in spawners)
             {
                 if (spawner != null)
                 {
-                    spawner.UpdateDifficulty(currentFloor);
-                    spawner.SetSpawnRate(newSpawnRate);
-                    spawner.SetEnemyHealth(newEnemyHealth);
+                    // Calculate final spawn rate: baseSpawnInterval * (spawnRateMultiplier)^(currentFloor - 1)
+                    float finalSpawnRate = spawner.baseSpawnInterval * Mathf.Pow(spawnRateMultiplier, currentFloor - 1);
+                    spawner.SetFinalSpawnInterval(finalSpawnRate);
+
+                    // Calculate final maximum enemy count: baseMaxEnemies * (maxEnemyMultiplier)^(currentFloor - 1)
+                    int finalMaxEnemies = Mathf.RoundToInt(spawner.baseMaxEnemies * Mathf.Pow(maxEnemyMultiplier, currentFloor - 1));
+                    spawner.SetFinalMaxEnemies(finalMaxEnemies);
+
+                    // Update the spawner's health via BeaconHealth, if available.
+                    BeaconHealth beacon = spawner.GetComponent<BeaconHealth>();
+                    if (beacon != null)
+                    {
+                        int finalSpawnerHealth = Mathf.RoundToInt(beacon.health * Mathf.Pow(spawnerHealthMultiplier, currentFloor - 1));
+                        beacon.SetHealth(finalSpawnerHealth);
+                    }
                 }
             }
         }
@@ -120,5 +147,21 @@ public class FloorManager : MonoBehaviour
     public void ResetFloorProgress()
     {
         playerData.currentFloor = 1;
+    }
+
+    /// <summary>
+    /// Calculates and applies final enemy stats using multipliers.
+    /// Final stat = enemy base stat * (multiplier)^(currentFloor - 1).
+    /// </summary>
+    /// <param name="enemy">The enemy whose final stats will be calculated.</param>
+    public void ApplyFinalEnemyStats(Enemy enemy)
+    {
+        int finalHealth = Mathf.RoundToInt(enemy.enemyBaseHealth * Mathf.Pow(enemyHealthMultiplier, currentFloor - 1));
+        int finalDamage = Mathf.RoundToInt(enemy.enemyBaseDamage * Mathf.Pow(enemyDamageMultiplier, currentFloor - 1));
+        float finalSpeed = enemy.enemyBaseSpeed * Mathf.Pow(enemySpeedMultiplier, currentFloor - 1);
+        int finalXP = Mathf.RoundToInt(enemy.baseXP * Mathf.Pow(enemyXPMultiplier, currentFloor - 1));
+
+        enemy.ApplyFinalStats(finalHealth, finalDamage, finalSpeed);
+        enemy.ApplyFinalXP(finalXP);
     }
 }

@@ -106,10 +106,15 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   enemyBaseHealth: 20
-  soulValue: 40
-  damageToPlayer: 30
-  baseXP: 20
+  enemyBaseDamage: 10
+  enemyBaseSpeed: 2
+  finalHealth: 0
+  finalDamage: 0
+  finalSpeed: 0
+  finalXP: 0
+  baseXP: 10
   playerData: {fileID: 11400000, guid: d434b6c05fae0e34695d9b5f1fb5e834, type: 2}
+  soulValue: 40
   knockbackForce: 5
   knockbackDuration: 0.2
   knockbackThreshold: 5
@@ -218,6 +223,9 @@ MonoBehaviour:
     m_Bits: 8
   movementScript: {fileID: 5587279585980730532}
   aiPathScript: {fileID: 5405648116013954849}
+  canTriggerGlobalAlert: 0
+  alertRadius: 10
+  isAlerted: 0
 --- !u!114 &5319162541780646760
 MonoBehaviour:
   m_ObjectHideFlags: 0

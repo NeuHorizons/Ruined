@@ -107,10 +107,15 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   enemyBaseHealth: 2
-  soulValue: 10
-  damageToPlayer: 10
-  baseXP: 10
+  enemyBaseDamage: 10
+  enemyBaseSpeed: 2
+  finalHealth: 0
+  finalDamage: 0
+  finalSpeed: 0
+  finalXP: 0
+  baseXP: 3
   playerData: {fileID: 11400000, guid: d434b6c05fae0e34695d9b5f1fb5e834, type: 2}
+  soulValue: 10
   knockbackForce: 5
   knockbackDuration: 0.2
   knockbackThreshold: 5

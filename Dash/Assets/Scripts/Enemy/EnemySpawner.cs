@@ -4,6 +4,7 @@ using System.Collections.Generic;
 
 public class EnemySpawner : MonoBehaviour
 {
+    // ---- Enemy Spawn Data ----
     [System.Serializable]
     public class EnemySpawnData
     {
@@ -12,30 +13,36 @@ public class EnemySpawner : MonoBehaviour
     }
 
     public List<EnemySpawnData> enemyList = new List<EnemySpawnData>();
-    public float spawnInterval = 5f;
-    public int maxEnemies = 5;
-    public float spawnRadius = 3f; // Radius around the spawner for random spawning
+
+    // ---- Spawn Settings (Non-modifiable) ----
+    [Tooltip("Radius around the spawner for random spawning.")]
+    public float spawnRadius = 3f;
 
     private int currentEnemies = 0;
     private bool isDestroyed = false;
 
-    // --- NEW DIFFICULTY SETTINGS ---
-    [Header("Difficulty Settings")]
+    // ---- Base Stats (Used for Spawning) ----
+    [Header("Base Stats")]
     [Tooltip("The current floor level as set by the FloorManager.")]
     public int currentFloor = 1;
-    [Tooltip("Base spawn interval at floor 1.")]
+    [Tooltip("Spawn interval (in seconds) at floor 1.")]
     public float baseSpawnInterval = 5f;
-    [Tooltip("Base maximum number of enemies at floor 1.")]
+    [Tooltip("Maximum number of enemies at floor 1.")]
     public int baseMaxEnemies = 5;
-    [Tooltip("How much to decrease spawn interval per floor.")]
-    public float spawnIntervalDecreasePerFloor = 0.1f;
-    [Tooltip("Additional enemies to add every 5 floors.")]
-    public int additionalEnemiesPer5Floors = 1;
-    [Tooltip("Base enemy health at floor 1.")]
-    public float baseEnemyHealth = 100f;
-    [Tooltip("Additional enemy health per floor.")]
-    public float enemyHealthIncreasePerFloor = 10f;
-    // --- END NEW DIFFICULTY SETTINGS ---
+
+    // ---- Final Stats (Calculated via FloorManager) ----
+    [Header("Final Stats (Calculated)")]
+    [Tooltip("Final spawn interval after applying multipliers.")]
+    public float finalSpawnInterval;
+    [Tooltip("Final maximum number of enemies after applying multipliers.")]
+    public int finalMaxEnemies;
+
+    private void Awake()
+    {
+        // Initialize final stats to base values by default.
+        finalSpawnInterval = baseSpawnInterval;
+        finalMaxEnemies = baseMaxEnemies;
+    }
 
     private void Start()
     {
@@ -46,11 +53,12 @@ public class EnemySpawner : MonoBehaviour
     {
         while (!isDestroyed)
         {
-            if (currentEnemies < maxEnemies)
+            // Use the final maximum enemy count.
+            if (currentEnemies < finalMaxEnemies)
             {
                 SpawnEnemy();
             }
-            yield return new WaitForSeconds(spawnInterval);
+            yield return new WaitForSeconds(finalSpawnInterval);
         }
     }
 
@@ -64,14 +72,11 @@ public class EnemySpawner : MonoBehaviour
         {
             Vector3 spawnPosition = GetRandomSpawnPoint();
             GameObject enemyObj = Instantiate(selectedEnemy, spawnPosition, Quaternion.identity);
-            
-            Enemy enemyScript = enemyObj.GetComponent<Enemy>();
 
+            Enemy enemyScript = enemyObj.GetComponent<Enemy>();
             if (enemyScript != null)
             {
-                // Use the enemy's own base enemy health to calculate final health.
-                // This method will calculate: finalHealth = enemyBaseHealth + (currentFloor * enemyHealthIncreasePerFloor)
-                enemyScript.SetFinalHealth(currentFloor, enemyHealthIncreasePerFloor);
+                // The enemy will request its final stats from FloorManager later.
                 enemyScript.SetSpawner(this);
             }
 
@@ -81,15 +86,13 @@ public class EnemySpawner : MonoBehaviour
 
     Vector3 GetRandomSpawnPoint()
     {
-        Vector2 randomOffset = Random.insideUnitCircle * spawnRadius; // Get random point within a circle
-        Vector3 randomSpawnPosition = new Vector3(transform.position.x + randomOffset.x, transform.position.y + randomOffset.y, transform.position.z);
-        return randomSpawnPosition;
+        Vector2 randomOffset = Random.insideUnitCircle * spawnRadius;
+        return new Vector3(transform.position.x + randomOffset.x, transform.position.y + randomOffset.y, transform.position.z);
     }
 
     GameObject GetRandomEnemy()
     {
         float totalWeight = 0f;
-
         foreach (var enemy in enemyList)
         {
             totalWeight += enemy.spawnChance;
@@ -106,7 +109,6 @@ public class EnemySpawner : MonoBehaviour
                 return enemy.enemyPrefab;
             }
         }
-
         return null;
     }
 
@@ -122,39 +124,21 @@ public class EnemySpawner : MonoBehaviour
         Destroy(gameObject);
     }
 
-    // --- NEW DIFFICULTY MANAGEMENT METHODS ---
-
     /// <summary>
-    /// Updates the spawner difficulty based on the current floor level.
-    /// This method recalculates the spawn interval and max enemy count.
-    /// It should be called by the FloorManager whenever the floor level changes.
+    /// Called by FloorManager to update the final spawn interval.
     /// </summary>
-    /// <param name="floorLevel">The current floor level.</param>
-    public void UpdateDifficulty(int floorLevel)
+    /// <param name="newSpawnInterval">Final spawn interval in seconds.</param>
+    public void SetFinalSpawnInterval(float newSpawnInterval)
     {
-        currentFloor = floorLevel;
-        // Adjust spawn interval: lower intervals (faster spawns) as floor increases,
-        // but do not go below a minimum threshold (e.g., 1 second).
-        spawnInterval = Mathf.Max(1f, baseSpawnInterval - (floorLevel * spawnIntervalDecreasePerFloor));
-        // Increase max enemies based on floor level (example: add additional enemy every 5 floors).
-        maxEnemies = baseMaxEnemies + (Mathf.FloorToInt((float)floorLevel / 5f) * additionalEnemiesPer5Floors);
+        finalSpawnInterval = newSpawnInterval;
     }
 
     /// <summary>
-    /// Sets the spawner's spawn rate to a new value.
+    /// Called by FloorManager to update the final maximum enemy count.
     /// </summary>
-    /// <param name="newSpawnRate">The new spawn rate (in seconds between spawns).</param>
-    public void SetSpawnRate(float newSpawnRate)
+    /// <param name="newMaxEnemies">Final maximum enemy count.</param>
+    public void SetFinalMaxEnemies(int newMaxEnemies)
     {
-        spawnInterval = newSpawnRate;
-    }
-
-    /// <summary>
-    /// Sets the spawner's base enemy health to a new value.
-    /// </summary>
-    /// <param name="newEnemyHealth">The new base enemy health value.</param>
-    public void SetEnemyHealth(float newEnemyHealth)
-    {
-        baseEnemyHealth = newEnemyHealth;
+        finalMaxEnemies = newMaxEnemies;
     }
 }

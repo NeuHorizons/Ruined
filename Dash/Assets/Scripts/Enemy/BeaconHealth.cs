@@ -2,17 +2,40 @@ using UnityEngine;
 
 public class BeaconHealth : MonoBehaviour
 {
+    [Header("Spawner Health Settings")]
+    [Tooltip("Current health of the spawner.")]
     public int health = 5;
     
-    // Assign your drop prefab (e.g., Trader drop) in the Inspector.
+    [Header("Spawner Drop Settings")]
+    [Tooltip("Prefab for the drop (e.g., Trader drop) that spawns upon spawner destruction.")]
     public GameObject dropPrefab;
-    
-    // New: Prefab for the hole object.
+    [Tooltip("Prefab for the hole object.")]
     public GameObject holePrefab;
-    
-    // New: Percentage chance (0 to 1) for the hole to spawn instead of the normal drop.
+    [Tooltip("Percentage chance (0 to 1) for the hole to spawn instead of the normal drop.")]
     public float holeSpawnChance = 0.2f; // 20% chance by default.
 
+    // Cache the EnemySpawner component on this object.
+    private EnemySpawner enemySpawner;
+
+    private void Awake()
+    {
+        enemySpawner = GetComponent<EnemySpawner>();
+    }
+    
+    /// <summary>
+    /// Updates the spawner's health to the specified value.
+    /// </summary>
+    /// <param name="newHealth">The new health value for the spawner.</param>
+    public void SetHealth(int newHealth)
+    {
+        health = newHealth;
+        Debug.Log("Spawner health updated to: " + health);
+    }
+    
+    /// <summary>
+    /// Reduces spawner health by the specified damage amount and checks for destruction.
+    /// </summary>
+    /// <param name="damage">Amount of damage taken.</param>
     public void TakeDamage(int damage)
     {
         health -= damage;
@@ -24,13 +47,27 @@ public class BeaconHealth : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Handles spawner destruction, including dropping an item or a hole based on conditions.
+    /// </summary>
     void DestroySpawner()
     {
         Debug.Log("Spawner destroyed! Spawning drop...");
         SpawnDrop();
-        Destroy(gameObject);
+        
+        if (enemySpawner != null)
+        {
+            enemySpawner.DestroySpawner();
+        }
+        else
+        {
+            Destroy(gameObject);
+        }
     }
 
+    /// <summary>
+    /// Determines whether to spawn a drop or a hole and instantiates the corresponding prefab.
+    /// </summary>
     void SpawnDrop()
     {
         bool spawnHole = false;
